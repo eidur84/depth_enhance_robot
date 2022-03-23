@@ -3,11 +3,7 @@
 	<arg name="robot_ip" default="172.12.0.2"/>
 	<arg name="load_gripper" default="false" />
 
-<<<<<<< HEAD
 	<include file="$(find depth_enhance_robot)/launch/panda_control.launch" >
-=======
-	<include file="$(find auto_labeller)/launch/panda_control.launch" >
->>>>>>> b39d77c11470b56c81a083d59abf940880d86566
 		<arg name="robot_ip" value="$(arg robot_ip)" />
 		<arg name="load_gripper" value="$(arg load_gripper)" />
 	</include> <!--Load the panda robot-->

@@ -13,7 +13,6 @@ project(depth_enhance_vision)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
-<<<<<<< HEAD
   moveit_core
   moveit_ros_perception
   moveit_ros_planning_interface
@@ -21,26 +20,13 @@ find_package(catkin REQUIRED COMPONENTS
   #picking_perception
   roscpp
   vision_msgs
-=======
-  #moveit_core
-  #moveit_ros_perception
-  #moveit_ros_planning_interface
-  #moveit_visual_tools
-  #picking_perception
-  roscpp
-  #vision_msgs
->>>>>>> b39d77c11470b56c81a083d59abf940880d86566
   roslib
   sensor_msgs
   std_msgs
   tf
   tf_conversions
   trajectory_msgs
-<<<<<<< HEAD
   franka_msgs
-=======
-  #franka_msgs
->>>>>>> b39d77c11470b56c81a083d59abf940880d86566
 )
 
 ## System dependencies are found with CMake's conventions
@@ -136,7 +122,6 @@ catkin_package(
 #INCLUDE_DIRS include
 
   LIBRARIES
-<<<<<<< HEAD
   depth_enhance_robot
   CATKIN_DEPENDS
   geometry_msgs
@@ -144,15 +129,7 @@ catkin_package(
   moveit_ros_perception
   moveit_ros_planning_interface
   moveit_visual_tools
-=======
   depth_enhance_vision
-  CATKIN_DEPENDS
-  geometry_msgs
-  #moveit_core
-  #moveit_ros_perception
-  #moveit_ros_planning_interface
-  #moveit_visual_tools
->>>>>>> b39d77c11470b56c81a083d59abf940880d86566
   roscpp
   roslib
   sensor_msgs
@@ -191,17 +168,14 @@ include_directories(
 #  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 #)
 ## Mark cpp header files for installation
-<<<<<<< HEAD
 #install(DIRECTORY include/${PROJECT_NAME}/
 #  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
 #  FILES_MATCHING PATTERN "*.h"
 #)
-=======
 install(DIRECTORY include/${PROJECT_NAME}/
   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
   FILES_MATCHING PATTERN "*.h"
 )
->>>>>>> b39d77c11470b56c81a083d59abf940880d86566
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
@@ -234,7 +208,6 @@ install(DIRECTORY include/${PROJECT_NAME}/
 # test_scanner
 =======
 #  test_scanner
->>>>>>> b39d77c11470b56c81a083d59abf940880d86566
 #  pandascanner
 #  ${catkin_LIBRARIES}
 #)

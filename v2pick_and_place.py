@@ -116,7 +116,7 @@ def homePos():
 def moveAbove(pose_target):
     captureImage(currbox)
     before = pose_target.position.z
-    
+    print("Move above!")
     pose_target.position.z = before + 0.1
     group.set_pose_target(pose_target)
     plan1 = group.plan()
