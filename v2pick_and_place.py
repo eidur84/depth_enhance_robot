@@ -29,7 +29,7 @@ import os, os.path
 import moveit_msgs.msg
 from random import random, randrange, randint
 from datetime import date, datetime
-
+#Git test
 #The box bounderies....
 XMAX = 0.36 # 0.38
 XMAX2 = 0.405
