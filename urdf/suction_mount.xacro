@@ -1,0 +1,64 @@
+<?xml version="1.0" ?>
+<robot name="suction_mount" xmlns:xacro="http://ros.org/wiki/xacro">
+  <link name="base_link"/>
+  <!--<link name="tool0"/>1.570796327-->
+
+  <joint name="base_to_tool0" type="fixed">
+    <parent link="base_link"/>
+    <child link="basetool"/>
+    <origin xyz="0 0 0" rpy="0 0 0.785398163"/>
+  </joint>
+
+<xacro:include filename="$(find realsense2_camera)/urdf/_d435.urdf.xacro"/>
+
+<link name="basetool">
+<visual>
+ <origin xyz="0 0 0" rpy="-1.570796327 0 0"/>
+  <geometry>
+    <mesh filename="package://auto_labeller/urdf/model_panda_vacuum.stl"
+    scale="0.001 0.001 0.001"/>
+  </geometry>
+</visual>
+<collision>
+<origin xyz="0 0 0" rpy="-1.570796327 0 0"/>
+  <geometry>
+    <mesh filename="package://auto_labeller/urdf/model_panda_vacuum.stl"
+    scale="0.001 0.001 0.001"/>
+
+  </geometry>
+</collision>
+<inertial>
+  <origin xyz="0 0 0" rpy="0 0 0" />
+  <mass value="0.68" />
+  <inertia ixx="0.1" ixy="0.0" ixz="0.0" iyy="0.1" iyz="0.0" izz="0.1" />
+</inertial>
+</link>
+<!--0.785398163
+<link name="hand">
+<visual>
+  <geometry>
+    <mesh filename="package://franka_description/meshes/visual/hand.dae"/>
+  </geometry>
+</visual>
+<collision>
+  <geometry>
+    <mesh filename="package://franka_description/meshes/collision/hand.stl"/>
+  </geometry>
+</collision>
+
+<inertial>
+  <origin xyz="0 0 0" rpy="0 0 0" />
+  <mass value="0.68" />
+  <inertia ixx="0.1" ixy="0.0" ixz="0.0" iyy="0.1" iyz="0.0" izz="0.1" />
+</inertial>
+</link>-->
+<link name="shift_origin"/>
+<!--<link name="cameraframe"/>-->
+
+<joint name="camera_framejoint" type="fixed">
+  <parent link="base_link"/>
+  <child link="shift_origin"/>
+  <origin xyz="0.027 0 0.004 " rpy="0 0 0 "/>
+</joint>
+
+</robot>
