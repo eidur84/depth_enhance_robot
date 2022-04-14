@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <launch>
-    <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find auto_labeller)/urdf/camera_with_mount.urdf.xacro'" />
+    <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find depth_enhance_robot)/urdf/camera_with_mount.urdf.xacro'" />
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
 
     <arg name="gui" default="True" />

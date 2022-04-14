@@ -1,9 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-<<<<<<< HEAD
 project(depth_enhance_robot)
-=======
-project(depth_enhance_vision)
->>>>>>> b39d77c11470b56c81a083d59abf940880d86566
 
 ## Compile as C++11, supported in ROS Kinetic and newer
 # add_compile_options(-std=c++11)
@@ -13,6 +9,7 @@ project(depth_enhance_vision)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
+  visualization_msgs
   moveit_core
   moveit_ros_perception
   moveit_ros_planning_interface
@@ -129,7 +126,6 @@ catkin_package(
   moveit_ros_perception
   moveit_ros_planning_interface
   moveit_visual_tools
-  depth_enhance_vision
   roscpp
   roslib
   sensor_msgs
@@ -204,10 +200,7 @@ install(DIRECTORY include/${PROJECT_NAME}/
 #)
 #add_dependencies(test_scanner ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 #target_link_libraries(
-<<<<<<< HEAD
 # test_scanner
-=======
-#  test_scanner
 #  pandascanner
 #  ${catkin_LIBRARIES}
 #)

@@ -1,6 +1,6 @@
 <?xml version="1.0" ?>
 <launch>
-    <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find auto_labeller)/urdf/panda_arm_suction_cam.urdf.xacro'" />
+    <param name="robot_description" command="$(find xacro)/xacro --inorder '$(find depth_enhance_robot)/urdf/panda_arm_suction_cam_new.urdf.xacro'" />
     <node name="robot_state_publisher" pkg="robot_state_publisher" type="state_publisher" />
     <!--panda_arm_suction_cam     suction_mount.xacro-->
     <arg name="gui" default="True" />
