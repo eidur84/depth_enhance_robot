@@ -2,7 +2,7 @@
 import time
 from typing import Container
 import roslib
-roslib.load_manifest('auto_labeller')
+#roslib.load_manifest('auto_labeller')
 import rospy
 import math
 from math import radians
@@ -31,7 +31,6 @@ import os, os.path
 import moveit_msgs.msg
 from random import random, randrange, randint
 from datetime import date, datetime
-#Git test
 #The box bounderies....
 XMAX = 0.36 # 0.38
 XMAX2 = 0.405
@@ -39,9 +38,9 @@ XMIN = 0.28
 YMAX = 0.137
 YMIN = -0.096
 #Home position
-HOMEX = 0.37248#0.3091
-HOMEY = -0.00051#0.0048
-HOMEZ = 0.4525#0.4234
+HOMEX = 0.3765#0.3091
+HOMEY = 0#0.0048
+HOMEZ = 0.39231#0.4234
 
 locerror = 0.01 # max error in movement
 #moveit_commander.roscpp_initialize(sys.argv)
@@ -56,24 +55,28 @@ suctionCup = 0.12#0.045 #decreas if want to go further down 0.034 length from en
 dropSpace = 0.015
 # green 4.5cm
 
-def addMarker(pickp):
+def addMarker(pickp,refframe,color=True):
 
-   marker = Marker()
-   marker.header.frame_id = "camera_color_frame" 
-   marker.type = marker.SPHERE
-   marker.action = marker.ADD
-   marker.scale.x = 0.01
-   marker.scale.y = 0.01
-   marker.scale.z = 0.01
-   marker.color.r = 1.0
-   marker.color.a = 1.0
-   marker.pose.orientation.w = 1.0
-   marker.pose.position.x = pickp.pose.position.x
-   marker.pose.position.y = pickp.pose.position.y
-   marker.pose.position.z = pickp.pose.position.z
-   marker.lifetime = rospy.Duration(0)
+    marker = Marker()
+    marker.header.frame_id = refframe
+    marker.type = marker.SPHERE
+    marker.action = marker.ADD
+    marker.scale.x = 0.01
+    marker.scale.y = 0.01
+    marker.scale.z = 0.01
+    if(color == True):
+        marker.color.r = 1.0
+    else:
+        marker.color.g = 1.0
 
-   markpub.publish(marker)
+    marker.color.a = 1.0
+    marker.pose.orientation.w = 1.0
+    marker.pose.position.x = pickp.position.x
+    marker.pose.position.y = pickp.position.y
+    marker.pose.position.z = pickp.position.z
+    marker.lifetime = rospy.Duration(0)
+
+    markpub.publish(marker)
 
 def movetotouch(inital_pose, force_goal):
     totdistance = 0
@@ -201,6 +204,7 @@ def endPos2(msg,rot):
     pose_target.position.y = p.point.y
     pose_target.position.z = p.point.z
     currentbox = [quat.x, quat.y, quat.z, quat.w]
+    addMarker(pose_target,"panda_link0", False)
     #print(currentbox)
     return pose_target, quat    
     
@@ -259,14 +263,14 @@ def moveAbove(pose_target):
     before = pose_target.position.z
     print("Move above!")
     # Move the suction cup slightly above the object (panda_suction_end 10 cm from target)
-    pose_target.position.z = before + 0.12 #0.12
+    pose_target.position.z = before + 0.05 #0.12
     #group.set_pose_target(pose_target)
     #plan1 = group.plan()
     #group.go(wait=True)
     #group.clear_pose_targets()
     cartesian_traject(pose_target,0.01,0.5)
     print("Hovering above")
-    input("Press any key to continue")
+    #input("Press any key to continue")
     #downspace = 0 
     #pressure = rospy.wait_for_message("/vacuum/pressure", Float32)
     # pubSuc.publish(Bool(True))
@@ -320,7 +324,8 @@ def stateMachine(currState):
     if currState == 0: #The first state starts by creating a new directory to save the images.
         folder = ""
         print("Create new dir")
-        folder = input("Folder name\n") # user creates a folder
+        #folder = input("Folder name\n") # user creates a folder
+        folder="eidur"
         dirName = folder_path + "/" + folder
         try:
             # Create target Directory
@@ -331,7 +336,7 @@ def stateMachine(currState):
             print("Directory " , dirName ,  " already exists") 
         return 1
     elif currState == 1: # The second state waits until the user wants coordinates by entering the desired number. 
-        value = 0
+        value = 2
         while value != 2: 
             value = input("Enter 2 to get coordinates:\n")
             value = int(value)
@@ -352,13 +357,13 @@ def stateMachine(currState):
                 q = quaternion_from_euler(math.pi, 0, 0)
                 msg = rospy.wait_for_message("/pandaposition", PoseStamped)
                 rospy.loginfo("Received at goal message!")
-                addMarker(msg)
-                input("Review position of marker")
+                addMarker(msg.pose, "camera_color_frame")
+                #input("Review position of marker")
                 if(msg.pose.position.x == 0 and msg.pose.position.y == 0 and msg.pose.position.z == 0 ):
                     return 6
-                endPosition, currbox = endPos2(msg,q) # transforming
+                endPosition, currbox = endPos2(msg,q) # transforming from camera frame to world frame
                 rospy.loginfo(endPosition)
-                input("Inspect final position before continuing")
+                #input("Inspect final position before continuing")
                 if endPosition == "None":
                     
                     return 2

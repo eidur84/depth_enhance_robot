@@ -3,7 +3,7 @@
   <xacro:include filename="$(find franka_description)/robots/panda_arm.xacro"/>
   <!-- Different xacro files for d435 and l515-->
   <xacro:include filename="$(find depth_enhance_robot)/urdf/suction_cup_d435.xacro"/>
-  <!-- <xacro:include filename="$(find depth_enhance_robot)/urdf/suction_cup_new.xacro"/> -->
+  <!-- <xacro:include filename="$(find depth_enhance_robot)/urdf/suction_cup_d435.xacro"/> -->
   <!--<xacro:include filename="$(find franka_description)/robots/hand.xacro"/>-->
   <!-- for simulation -->
 
@@ -16,7 +16,7 @@
   <!-- end for simulation -->
 
   <xacro:panda_arm />
-  <xacro:suction ns="panda" rpy="0 0 ${-pi/4}" connected_to="panda_link8"/>
+  <xacro:suction ns="panda" rpy="0 0 ${-pi/4}" xyz="0 0 0" connected_to="panda_link8"/>
 
   <!-- for simulation -->
   <xacro:arg name="robot_name" default="panda"/>
