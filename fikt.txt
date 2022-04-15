@@ -1,3 +1,0 @@
-sudo pip uninstall rosdep
-sudo apt-get full-upgrade python3-rosdep
-
