@@ -15,6 +15,7 @@
       <!--<parent link="${ns}_suction"/>-->
       <parent link="${connected_to}"/>  
       <child link="${ns}_suction_rect"/>
+      <!-- pitch to account for end effector angle -->
       <origin xyz="0 0 0" rpy="0 0 ${-pi/4}"/>
       <!--<origin xyz="0 0 0" rpy="0 0 ${-pi/4}"/>-->
     </joint>
@@ -29,14 +30,14 @@
 <visual>
  <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
   <geometry>
-    <mesh filename="package://depth_enhance_robot/urdf/stykkibody.STL"
+    <mesh filename="package://depth_enhance_robot/urdf/stykkibodyV3.STL"
     scale="0.001 0.001 0.001"/>
   </geometry>
 </visual>
 <collision>
 <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
   <geometry>
-    <mesh filename="package://depth_enhance_robot/urdf/stykkibody.STL"
+    <mesh filename="package://depth_enhance_robot/urdf/stykkibodyV3.STL"
     scale="0.001 0.001 0.001"/>
   </geometry>
 </collision>
@@ -52,7 +53,7 @@
 <joint name="${ns}_suction_end_joint" type="fixed">
   <parent link="${ns}_suction_rect"/>
   <child link="${ns}_suction_end"/>
-  <origin xyz="0 0 0.139" rpy="0 0 0"/>
+  <origin xyz="0 0 0.222" rpy="0 0 0"/>
 </joint>
 
 <link name="shift_origin"/>
@@ -60,7 +61,7 @@
   <parent link="${ns}_suction_rect"/>
   <child link="shift_origin"/>
   <!-- <origin xyz="0.032 0 0.004 " rpy="0 0 0 "/> -->
-  <origin xyz="0.032 0 0.002 " rpy="0 0 0 "/>
+  <origin xyz="0.04 0 0.004 " rpy="0 0 0 "/>
 </joint>
 <link name="picking_camera_link"/>
 <!--<link name="top_link" />
@@ -75,23 +76,36 @@
 Breyta offset fyrir myndavel og sensor_d435 i L515 
 x er i att ad i att ad vegg ef hann er i upphafsstodu
 y er i att ad tokkum
+Calibration: RPY -> 0.0392, 0.0329, 0.0262
 -->
-<link name="c_link" />
+
+<!-- <link name="c_link"/>
 <xacro:sensor_l515 parent="c_link">
-  <!--<origin xyz="0.01015 0.05 -0.0125" rpy="${pi/2} 0 0"/>-->
-  <!-- Camera sligthly tilted: Roll adjusted by 0.015 radians - pitch adjusted by 0.025 radians -->
-  <origin xyz="0 0 0" rpy="${pi} ${-pi/2-0.025} 0"/>
-<!--<origin xyz="0.01015 0.05 -0.0125" rpy="${pi/2} 0 0"/> -->
+  <origin xyz="-0.030325 0 0.013" rpy="${pi} ${-pi/2-0.01} 0"/>
+</xacro:sensor_l515> -->
+
+<!-- <joint name="basetocam" type="fixed">
+  <parent link="shift_origin" />
+  <child link="c_link" />
+  #<origin rpy="0.025 0 0 " xyz="${0.02-0.0133} 0 0.0125"/>#
+  <origin rpy="0.021 0 0 " xyz="0.02 0 0"/>
+</joint> -->
+
+<link name="c_link"/>
+<xacro:sensor_l515 parent="c_link">
+  <!-- <origin xyz="${-0.030325+0.02} 0 0.013" rpy="${pi} ${-pi/2-0.01} 0"/> -->
+  <origin xyz="${-0.030325+0.02} 0 ${0.013+0.002}" rpy="${pi} ${-pi/2} 0"/>
 </xacro:sensor_l515>
 
 <joint name="basetocam" type="fixed">
   <parent link="shift_origin" />
   <child link="c_link" />
-  <!--<origin rpy="0 ${-pi/2} ${-pi/2} " xyz="0.043 -0.01265 0.004"/>-->
-  <origin rpy="0.025 0 0 " xyz="${0.02-0.0125} 0 0.0125"/>
-  <!--<origin rpy="3.141593 -1.571 0 " xyz="0 0 0"/>
-  <origin rpy="3.1415 -1.571 0 " xyz="0.040 -0.0175 0.066"/>-->
+  <!-- <origin rpy="0.025 0 0 " xyz="${0.02-0.0133} 0 0.0125"/> -->
+  <!-- <origin rpy="0.021 0 0 " xyz="0 0 0"/> -->
+  <origin rpy="0.02 0.04 0 " xyz="0 0 0"/>
 </joint>
+
+<!-- Roll: 0.03 gott - Pitch: 0.04-->
 
 <!--<joint name="kinect_joint" type="fixed">
     <parent link="${ns}_suction_cup" />
@@ -102,7 +116,7 @@ y er i att ad tokkum
  <joint name="cam_joint" type="fixed">
      <parent link="shift_origin" />
      <child link="picking_camera_link" />
-<!--Offset a camera link, breyta <origin rpy="${-pi/2} ${-pi/2} ${-pi/2} " xyz="0 -0.0175 0.01015"/>-->
+<!--Offset a camera link, breyta <origin rpy="${-pi/2} ${-pi/2} ${-pi/2} " xyz="0 -0.0175 0.01015"/>--> 
      <origin rpy="${-pi/2} ${-pi/2} ${-pi/2} " xyz="0 -0.0175 0.01015"/>
   </joint>
 

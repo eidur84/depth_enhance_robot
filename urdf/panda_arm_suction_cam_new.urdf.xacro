@@ -2,7 +2,7 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="panda">
   <xacro:include filename="$(find franka_description)/robots/panda_arm.xacro"/>
   <!-- Different xacro files for d435 and l515-->
-  <xacro:include filename="$(find depth_enhance_robot)/urdf/suction_cup_d435.xacro"/>
+  <xacro:include filename="$(find depth_enhance_robot)/urdf/suction_cup_l515.xacro"/>
   <!-- <xacro:include filename="$(find depth_enhance_robot)/urdf/suction_cup_d435.xacro"/> -->
   <!--<xacro:include filename="$(find franka_description)/robots/hand.xacro"/>-->
   <!-- for simulation -->

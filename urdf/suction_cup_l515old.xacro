@@ -2,8 +2,8 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="suction">
   <xacro:macro name="suction" params="connected_to:='' ns:='' rpy:='0 0 0' xyz:='0 0 0' ">
     <xacro:unless value="${connected_to == ''}">
-    <xacro:include filename="$(find realsense2_description)/urdf/_d435.urdf.xacro"/>
-    <!--<xacro:include filename="$(find realsense2_description)/urdf/_l515.urdf.xacro"/>-->
+    <!-- <xacro:include filename="$(find realsense2_description)/urdf/_d435.urdf.xacro"/> -->
+    <xacro:include filename="$(find realsense2_description)/urdf/_l515.urdf.xacro"/>
     <link name="${ns}_suction_rect"/>
       <joint name="${ns}_suction_joint" type="fixed">
         <parent link="${connected_to}"/>
@@ -29,7 +29,7 @@
 <visual>
  <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
   <geometry>
-    <mesh filename="package://depth_enhance_robot/urdf/stykkibodyV3.STL"
+    <mesh filename="package://depth_enhance_robot/urdf/stykkibody.STL"
     scale="0.001 0.001 0.001"/>
   </geometry>
 </visual>
@@ -52,7 +52,7 @@
 <joint name="${ns}_suction_end_joint" type="fixed">
   <parent link="${ns}_suction_rect"/>
   <child link="${ns}_suction_end"/>
-  <origin xyz="0 0 0.21" rpy="0 0 0"/>
+  <origin xyz="0 0 0.22" rpy="0 0 0"/>
 </joint>
 
 <link name="shift_origin"/>
@@ -60,7 +60,7 @@
   <parent link="${ns}_suction_rect"/>
   <child link="shift_origin"/>
   <!-- <origin xyz="0.032 0 0.004 " rpy="0 0 0 "/> -->
-  <origin xyz="0.04 0 0.004 " rpy="0 0 0 "/>
+  <origin xyz="0.032 0 0.002 " rpy="0 0 0 "/>
 </joint>
 <link name="picking_camera_link"/>
 <!--<link name="top_link" />
@@ -68,7 +68,6 @@
     <parent link="base_mount"/>
     <child link="top_link"/>
     <origin xyz="0 0.012 0.038" rpy="0 0 0"/>
-
 </joint>-->
 
 <!--
@@ -77,20 +76,20 @@ x er i att ad i att ad vegg ef hann er i upphafsstodu
 y er i att ad tokkum
 -->
 <link name="c_link" />
-<xacro:sensor_d435 parent="c_link">
+<xacro:sensor_l515 parent="c_link">
   <!--<origin xyz="0.01015 0.05 -0.0125" rpy="${pi/2} 0 0"/>-->
-  <!-- Camera sligthly tilted: Roll adjusted by 0.02 radians pitch adjusted by 0.025 radians -->
-  <!-- <origin xyz="0 0 0" rpy="${pi+0.02} ${-pi/2-0.025} 0"/> -->
-  <origin xyz="-0.0125 0 ${0.0125-0.002}" rpy="${pi} ${-pi/2} 0"/>
+  <!-- Camera sligthly tilted: Roll adjusted by 0.015 radians - pitch adjusted by 0.025 radians -->
+  <origin xyz="0 0 0" rpy="${pi} ${-pi/2-0.025} 0"/>
+<!--<origin xyz="0.01015 0.05 -0.0125" rpy="${pi/2} 0 0"/> -->
+</xacro:sensor_l515>
 
-</xacro:sensor_d435>
-
-<!-- Roll adjusted here since roll seems to control yaw for the d435 xacro sensor -->
 <joint name="basetocam" type="fixed">
-  <parent link="shift_origin"/>
+  <parent link="shift_origin" />
   <child link="c_link" />
-  <!-- <origin rpy="0.02 -0.045 0 " xyz="0.02 0 0"/> -->
-  <origin rpy="0.05 -0.01 0 " xyz="0.02 0 0"/>
+  <!--<origin rpy="0 ${-pi/2} ${-pi/2} " xyz="0.043 -0.01265 0.004"/>-->
+  <origin rpy="0.025 0 0 " xyz="${0.02-0.0125} 0 0.0125"/>
+  <!--<origin rpy="3.141593 -1.571 0 " xyz="0 0 0"/>
+  <origin rpy="3.1415 -1.571 0 " xyz="0.040 -0.0175 0.066"/>-->
 </joint>
 
 <!--<joint name="kinect_joint" type="fixed">
@@ -109,7 +108,6 @@ y er i att ad tokkum
 
 <!-- 
 Gazeboo simulation fyrir nedan 
-
  <gazebo reference="picking_camera_link">
     <sensor type="depth" name="openni_camera_camera">
         <always_on>1</always_on>
@@ -122,7 +120,6 @@ Gazeboo simulation fyrir nedan
                 <format>B8G8R8</format>
             </image>
             <depth_camera>
-
             </depth_camera>
             <clip>
                 <near>0.01</near>
@@ -130,7 +127,6 @@ Gazeboo simulation fyrir nedan
             </clip>
         </camera>
        <plugin name="camera_controller" filename="libgazebo_ros_openni_kinect.so">
-
             <alwaysOn>true</alwaysOn>
                 <updateRate>10.0</updateRate>
                 <cameraName>picking_camera</cameraName>

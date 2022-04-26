@@ -2,7 +2,6 @@
 import time
 from typing import Container
 import roslib
-roslib.load_manifest('auto_labeller')
 import rospy
 import math
 from math import radians
@@ -19,6 +18,7 @@ from sensor_msgs.msg import Image
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float32
 from std_msgs.msg import Header
+from visualization_msgs.msg import Marker
 # ROS Image message -> OpenCV2 image converter
 from cv_bridge import CvBridge, CvBridgeError
 # OpenCV2 for saving an image
@@ -57,20 +57,46 @@ error = 0.05 # error from the camera, since it is tilted
 suctionCup = 0.12#0.045 #decreas if want to go further down 0.034 length from endeffector to end of suction cup red suction 5.5cm
 dropSpace = 0.015
 
-def cartesian_traject(pose_goal):
+def addMarker(pickp,refframe,color=True):
 
+    marker = Marker()
+    marker.header.frame_id = refframe
+    marker.type = marker.SPHERE
+    marker.action = marker.ADD
+    marker.scale.x = 0.01
+    marker.scale.y = 0.01
+    marker.scale.z = 0.01
+    if(color == True):
+        marker.color.r = 1.0
+    else:
+        marker.color.g = 1.0
+
+    marker.color.a = 1.0
+    marker.pose.orientation.w = 1.0
+    marker.pose.position.x = pickp.position.x
+    marker.pose.position.y = pickp.position.y
+    marker.pose.position.z = pickp.position.z
+    marker.lifetime = rospy.Duration(0)
+
+    markpub.publish(marker)
+
+def cartesian_traject(waypoint,step,vel_scale,pause=False):
+    
+    group.clear_pose_targets()
+    #print(waypoint.position.z)
     waypoints = []
-    waypoints.append(copy.deepcopy(pose_goal))  
+    waypoints.append(copy.deepcopy(waypoint))  
     (plan, fraction) = group.compute_cartesian_path(
                                                           waypoints,   # waypoints to follow
-                                                          0.0005,        # eef_step
+                                                          step,        # eef_step
                                                           0         # jump_threshold
     )
 
-    plan = group.retime_trajectory(robot.get_current_state(),plan,0.5)
+    plan = group.retime_trajectory(robot.get_current_state(),plan,vel_scale)
     group.execute(plan)
 
-    rospy.sleep(0.5)
+    if pause:
+        rospy.sleep(1)
 
 def homePos():
     print("Moving to home position")
@@ -109,182 +135,218 @@ def homePos():
     group.go(wait=True)
     group.clear_pose_targets()
 
+def endPos(msg,rot): 
+    # Copying for simplicity
+    position = msg.pose.position
+    quat = msg.pose.orientation
+    # The pickpoint relative to the camera
+    camframePt=PointStamped()
+    camframePt.header.frame_id = str(msg.header.frame_id) #camera_color_frame
+    camframePt.header.stamp = rospy.Time(0)
+    camframePt.point.x=position.x #z
+    camframePt.point.y=position.y #x
+    camframePt.point.z=position.z #y 
+    # The pickpoint relative to the suction end
+    #p=listener.transformPoint("panda_suction_end",diff)
+
+    #pickPoint=PointStamped()
+    #pickPoint.header.frame_id = "panda_suction_end"
+    #pickPoint.header.stamp = rospy.Time()
+    #pickPoint.point.x=p.point.x
+    #pickPoint.point.y=p.point.y
+    #pickPoint.point.z=p.point.z-suctionCup
+    p = listener.transformPoint("panda_link0",camframePt)   
+    
+    pose_target = geometry_msgs.msg.Pose()
+    pose_target.orientation.x = rot[0]
+    pose_target.orientation.y = rot[1]
+    pose_target.orientation.z = rot[2]
+    pose_target.orientation.w = rot[3]
+    # pose_target.orientation.x = 1
+    # pose_target.orientation.y = 0
+    # pose_target.orientation.z = 0
+    # pose_target.orientation.w = 0
+    pose_target.position.x = p.point.x
+    pose_target.position.y = p.point.y
+    pose_target.position.z = p.point.z
+    currentbox = [quat.x, quat.y, quat.z, quat.w]
+    #addMarker(pose_target,"panda_link0", False)
+    #print(currentbox)
+    return pose_target, quat, camframePt.point.x 
+
 
 def runstuff():
 
-    # Recieving message from the camera
+    # Getting position of objects
     #msg = rospy.wait_for_message("/pandaposition", PoseStamped)
+    #addMarker(msg.pose, "camera_color_frame")
 
-    #while(msg.pose.position.x == 0 and msg.pose.position.y == 0 and msg.pose.position.z == 0 ):
-    #    msg = rospy.wait_for_message("/pandaposition", PoseStamped)
+    # Getting the position of the camera in world coordinates
+    camPt=PointStamped()
+    camPt.header.frame_id = "camera_color_frame"
+    camInitial = listener.transformPoint("panda_link0",camPt)
+    initialheight=camInitial.point.z
 
+    # Saving estimated depth from L515 camera
+    #lidardepth=msg.pose.position.x
 
-    
-    #print(msg)
-    input("Press to continue")
-    (trans,rot) = listener.lookupTransform('/panda_link0','/panda_suction_end', rospy.Time(0))
+    print(f'Initial height of camera: {initialheight}')
 
-    q = quaternion_from_euler(math.pi, 0, 0)
+    #q = quaternion_from_euler(math.pi, 0, 0)
 
-    #waypoints = []
+    # Point transformed to world frame - Middle point
+    #endPosition, currbox, camdepth = endPos(msg,q)
+    # pose_targetM = geometry_msgs.msg.Pose()
+    # pose_targetM.orientation.x = 1
+    # pose_targetM.orientation.y = 0
+    # pose_targetM.orientation.z = 0
+    # pose_targetM.orientation.w = 0
+    # pose_targetM.position.x = 0.41655
+    # pose_targetM.position.y = 0
+    # pose_targetM.position.z = 0.0196
+    # pose_goalM=pose_targetM
 
-    #print(f'{q[0]}, {q[1]}, {q[2]}, {q[3]}')
+    # Point transformed to world frame - Further left
+    #endPosition, currbox, camdepth = endPos(msg,q)
+    # pose_targetFL = geometry_msgs.msg.Pose()
+    # pose_targetFL.orientation.x = 1
+    # pose_targetFL.orientation.y = 0
+    # pose_targetFL.orientation.z = 0
+    # pose_targetFL.orientation.w = 0
+    # pose_targetFL.position.x = 0.49758
+    # pose_targetFL.position.y = 0.15024
+    # pose_targetFL.position.z = 0.0207
+    # pose_goalFL=pose_targetFL
 
-    # Setting initial pose 
-    #position = msg.pose.position
-    group.set_start_state_to_current_state()
-    pose_goal = geometry_msgs.msg.Pose()
-    pose_goal.orientation.x = rot[0]
-    pose_goal.orientation.y = rot[1]
-    pose_goal.orientation.z = rot[2]
-    pose_goal.orientation.w = rot[3]
-    #pose_goal.position.x = position.x
-    pose_goal.position.x = trans[0]
-    #pose_goal.position.y = position.y
-    pose_goal.position.y = trans[1]
-    pose_goal.position.z = trans[2]
+    # Point transformed to world frame - Further right
+    #endPosition, currbox, camdepth = endPos(msg,q)
+    # pose_target = geometry_msgs.msg.Pose()
+    # pose_target.orientation.x = 1
+    # pose_target.orientation.y = 0
+    # pose_target.orientation.z = 0
+    # pose_target.orientation.w = 0
+    # pose_target.position.x = 0.51112
+    # pose_target.position.y = -0.13277
+    # pose_target.position.z = 0.02378
+    # pose_goal=pose_target
+
+    # Point transformed to world frame - Near right
+    #endPosition, currbox, camdepth = endPos(msg,q)
+    pose_target = geometry_msgs.msg.Pose()
+    pose_target.orientation.x = 1
+    pose_target.orientation.y = 0
+    pose_target.orientation.z = 0
+    pose_target.orientation.w = 0
+    pose_target.position.x = 0.3939
+    pose_target.position.y = -0.112898
+    pose_target.position.z = 0.0276
+    pose_goal=pose_target
+
+    # Point transformed to world frame - Near left
+    #endPosition, currbox, camdepth = endPos(msg,q)
+    # pose_target = geometry_msgs.msg.Pose()
+    # pose_target.orientation.x = 1
+    # pose_target.orientation.y = 0
+    # pose_target.orientation.z = 0
+    # pose_target.orientation.w = 0
+    # pose_target.position.x = 0.38055
+    # pose_target.position.y = 0.16
+    # pose_target.position.z = 0.0222
+    # pose_goal=pose_target
+
+    addMarker(pose_goal, "panda_link0")
+
+    input("Review goal - Press to continue")
+
+    cartesian_traject(pose_goal,0.05,0.5,True)
 
     totdistance = 0
-    # Vectors to collect force/distance data
-    force = []
-    distance = []
+    # Vectors to collect force/distance da        forceval = rospy.wait_for_message("/franka_state_controller/F_ext", geometry_msgs.msg.WrenchStamped)
+
+    # Vectors for needed data
     xvec = []
     yvec = []
     waypoints = []
     realdist = []
+    force = []
+    distance = []
 
     #Setting initial values of force and distance vectors
-    forceval = rospy.wait_for_message("/franka_state_controller/F_ext", geometry_msgs.msg.WrenchStamped)
+    forcemsg = rospy.wait_for_message("/franka_state_controller/F_ext", geometry_msgs.msg.WrenchStamped)
+    forceval=0
     initpos = pose_goal.position.z
-    initforce = forceval.wrench.force.z
+    initforce = forcemsg.wrench.force.z
     increment = 0.001
 
-    while(totdistance < 0.02):
+    # Check the pressure on the vaccuum
+    pressure = rospy.wait_for_message("/vacuum/pressure", Float32)
+    # Vacuum on
+    #pubSuc.publish(Bool(True))
+
+    while(totdistance < 0.05 and forceval < 0.5):
         pose_goal.position.z -= increment
-        cartesian_traject(pose_goal)
+        cartesian_traject(pose_goal,0.0005,0.5,True)
         
         #input("press to increment down")
 
-        forceval = rospy.wait_for_message("/franka_state_controller/F_ext", geometry_msgs.msg.WrenchStamped)
-        force.append(abs(forceval.wrench.force.z - initforce))
+        # Force value on the end effector acquired
+        forcemsg = rospy.wait_for_message("/franka_state_controller/F_ext", geometry_msgs.msg.WrenchStamped)
+        #pressure = rospy.wait_for_message("/vacuum/pressure", Float32)
+        forceval=forcemsg.wrench.force.z - initforce
+        force.append(forceval)
         totdistance += increment 
         distance.append(totdistance)
         (trans,rot) = listener.lookupTransform('/panda_link0','/panda_suction_end', rospy.Time(0))
         xvec.append(trans[0])
         yvec.append(trans[1])
         realdist.append(initpos-pose_goal.position.z)
-        print(f'Force: {forceval.wrench.force.z - initforce} - Distance: {totdistance}')
-        print(f'{forceval.wrench.force.z}')
-        input("Press to continue")
+        print(f'Force: {forceval}- pressure: {pressure} - Distance: {totdistance}')
+        #print(f'{forceval.wrench.force.z}')
 
     print("Finished")
 
-    distance = np.asarray(distance)
-    force = np.asarray(force)
+    # Getting the position of the suction end in world coordinates
+    sucendPt=PointStamped()
+    sucendPt.header.frame_id = "panda_suction_end"
+    grndtruthpos = listener.transformPoint("panda_link0",sucendPt)
+    grndtruthheight=grndtruthpos.point.z
 
-    A = np.vstack([distance, np.ones(len(distance))]).T
+    grndtruthdepth=initialheight-grndtruthheight+0.003
 
-    m, c = np.linalg.lstsq(A, force, rcond=None)[0]
-
-    R = np.corrcoef(distance,force)
-
-    _ = plt.plot(distance, force, 'o', label='Force measurements', markersize=10)
-    _ = plt.plot(distance, m*distance + c, 'r', label='Fitted line')
-    _ = plt.xlabel('Suction cup compression (m)')
-    _ = plt.ylabel('Contact force (N)')
-    _ = plt.legend()
-    plt.show()
-
-    pointval = m*0.008+c
-
-    xvec = np.asarray(xvec)
-    yvec = np.asarray(yvec)
-
-    print(xvec-xvec[0])
-    print(yvec-yvec[0])
-    print(realdist)
-    print(R)
-    print(pointval)
-    print(f'm: {m} - c: {c}')
+    #print(f'Lidar depth: {lidardepth} - Measured depth: {grndtruthdepth}')
+    print(f'Measured depth: {grndtruthdepth}')
 
 
-    # group.set_pose_target(pose_goal)
-    # plan1 = group.plan()
-    # input("Showing planned path")
-    # group.go(wait=True)
+    #pubSuc.publish(Bool(False))
 
-    # pose_goal.position.z -= 0.05
-    # group.set_pose_target(pose_goal)
-    # plan1 = group.plan()
-    # input("Showing planned path")
-    # group.go(wait=True)Framkvæmdastjóri Barnaverndar Reykjavíkur fór í leyfi
+    # distance = np.asarray(distance)
+    # force = np.asarray(force)
 
-    # (plan, fraction) = group.compute_cartesian_path(
-    #                                                      waypoints,   # waypoints to follow
-    #                                                      0.05,        # eef_step
-    #                                                      0         # jump_threshold
-    # )
-    # #group.set_pose_target(pose_goal)
-    # #group.plan()
-    # input("Viewing planned path - press to continue")
-    # group.clear_pose_targets()
-    # group.set_max_velocity_scaling_factor(0.05)
-    # group.execute(plan)
-    # print("finished moving")
+    # A = np.vstack([distance, np.ones(len(distance))]).T
 
+    # m, c = np.linalg.lstsq(A, force, rcond=None)[0]
 
-    
+    # R = np.corrcoef(distance,force)
 
-    # input("Press to lower the suction cup")
+    # _ = plt.plot(distance, force, 'o', label='Force measurements', markersize=10)
+    # #_ = plt.plot(distance, m*distance + c, 'r', label='Fitted line')
+    # _ = plt.xlabel('Suction cup compression (m)')
+    # _ = plt.ylabel('Contact force (N)')
+    # _ = plt.legend()
+    # plt.show()
 
-    # currpose = group.get_current_pose()
-    # print(f'Before: {currpose}')
+    # pointval = m*0.008+c
 
-    # for i in range(20):
-    #     waypoints = []
-    #     currpose=group.get_current_pose().pose
-        
-    #     wpose = geometry_msgs.msg.Pose()
-    #     wpose.orientation = currpose.orientation
-    #     wpose.position.y = currpose.position.y
-    #     wpose.position.z = currpose.position.z - 0.002
-    #     wpose.position.x = currpose.position.x
+    # xvec = np.asarray(xvec)
+    # yvec = np.asarray(yvec)
 
-    #     waypoints.append(copy.deepcopy(wpose))
+    # print(xvec-xvec[0])
+    # print(yvec-yvec[0])
+    # print(realdist)
+    # print(R)
+    # print(pointval)
+    # print(f'm: {m} - c: {c}')
 
-    #     #wpose.position.z = waypoints[0].position.z - 0.11
-
-    #     #waypoints.append(copy.deepcopy(wpose))
-
-    #     (plan, fraction) = group.compute_cartesian_path(
-    #                                                         waypoints,   # waypoints to follow
-    #                                                         0.001,        # eef_step
-    #                                                         0.0)         # jump_threshold
-
-    #     group.clear_pose_targets()
-    #     group.set_max_velocity_scaling_factor(0.05)
-    #     group.execute(plan)
-
-
-    # currtime = rospy.Time.now()
-    # currpose = group.get_current_pose()
-    # currzpos = currpose.pose.position.z
-    # print(f'After: {currpose}')
-
-
-    #print(plan)
-    # increment=0.0015
-
-    # control = 1
-
-    # while(control != '0'):
-    #     group.shift_pose_target(2,-0.02)
-    #     #group.set_pose_target(pose_goal)
-    #     plan1 = group.plan()
-    #     group.go(wait=True)
-    #     group.clear_pose_targets()
-    #     control = input("Enter 0 to break the loop \n")
-    #     print(control)
 
 def main():
     try:
@@ -296,7 +358,7 @@ def main():
 if __name__ == '__main__':
 
     #rostopic pub  std_msgs/Bool true --once
-    pubSuc = rospy.Publisher('/vacuum/set_suction_on', Bool, queue_size=1) # Talk to the festo ovem suction cup
+    #pubSuc = rospy.Publisher('/vacuum/set_suction_on', Bool, queue_size=1) # Talk to the festo ovem suction cup
     rospy.init_node('pick_and_place')
     listener = tf.TransformListener()
     robot = moveit_commander.RobotCommander()
@@ -318,6 +380,7 @@ if __name__ == '__main__':
     print(f'Goal tolerance: {goaltol}')
     print(f'Orientation tolerance: {orientol}')
     print(f'joint tolerance: {jointtol}')
+    markpub = rospy.Publisher("posmarker", Marker, queue_size=1)
 
     display_trajectory_publisher = rospy.Publisher('move_group/display_planned_path', moveit_msgs.msg.DisplayTrajectory, queue_size=10) # Talks to the moveit motion planner
     homePos()
