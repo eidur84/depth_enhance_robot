@@ -132,7 +132,7 @@ def moveAbove(pose_target, camdepth):
     currentp=group.get_current_pose()
     currentp=pose_unstamped(currentp)
     # Moves vertically towards target pick point with a stopping condition of 2 N vertical force on the end effector
-    movetotouch(currentp,0.5)
+    #movetotouch(currentp,0.5)
     # errorx=pose_target.position.x - currentp.pose.position.x
     # errory=pose_target.position.y - currentp.pose.position.y
     # errorz=pose_target.position.z - currentp.pose.position.z
@@ -274,39 +274,39 @@ def captureImage(currentbox):
     counter = counter+1
 
 def homePos():
-    print("Moving to home position")
-    group.clear_pose_targets()
-    #group_variable_values = group.get_current_joint_values()
-    #group_variable_values[0] = float(radians(0))
-    #group_variable_values[1] = float(radians(-25))
-    #group_variable_values[2] = float(radians(1))
-    #group_variable_values[3] = float(radians(-133))
-    #group_variable_values[4] = float(radians(0))
-    #group_variable_values[5] = float(radians(109))
-    #group_variable_values[6] = float(radians(45)) # 45 is straight
-    #group.set_joint_value_target(group_variable_values)
+    # print("Moving to home position")
+    # group.clear_pose_targets()
+    # group_variable_values = group.get_current_joint_values()
+    # group_variable_values[0] = float(radians(0))
+    # group_variable_values[1] = float(radians(-25))
+    # group_variable_values[2] = float(radians(1))
+    # group_variable_values[3] = float(radians(-133))
+    # group_variable_values[4] = float(radians(0))
+    # group_variable_values[5] = float(radians(109))
+    # group_variable_values[6] = float(radians(45)) # 45 is straight
+    # group.set_joint_value_target(group_variable_values)
 
     # Joint positions in radians (L515)
-    group_variable_values = group.get_current_joint_values()
-    group_variable_values[0] = 0.039827141041538304
-    group_variable_values[1] = -0.6856789446295354
-    group_variable_values[2] = -0.051094866318138026
-    group_variable_values[3] = -2.6372590758340397
-    group_variable_values[4] = -0.022729468238022594
-    group_variable_values[5] = 1.9992456805838477
-    group_variable_values[6] = 0.7680859528355461 # 45 is straight
-    group.set_joint_value_target(group_variable_values)
+    # group_variable_values = group.get_current_joint_values()
+    # group_variable_values[0] = 0.039827141041538304
+    # group_variable_values[1] = -0.6856789446295354
+    # group_variable_values[2] = -0.051094866318138026
+    # group_variable_values[3] = -2.6372590758340397
+    # group_variable_values[4] = -0.022729468238022594
+    # group_variable_values[5] = 1.9992456805838477
+    # group_variable_values[6] = 0.7680859528355461 # 
+    # group.set_joint_value_target(group_variable_values)
 
     # Joint positions in radians (D435)
-    # group_variable_values = group.get_current_joint_values()
-    # group_variable_values[0] = 0.020526881909422708
-    # group_variable_values[1] = -0.5317800948996293
-    # group_variable_values[2] = -0.1270579353005081
-    # group_variable_values[3] = -2.6110645072334693
-    # group_variable_values[4] = -0.018342747257815466
-    # group_variable_values[5] = 2.139517307692104
-    # group_variable_values[6] = 0.6733780175112191
-    # group.set_joint_value_target(group_variable_values)
+    group_variable_values = group.get_current_joint_values()
+    group_variable_values[0] = 0.020526881909422708
+    group_variable_values[1] = -0.5317800948996293
+    group_variable_values[2] = -0.1270579353005081
+    group_variable_values[3] = -2.6110645072334693
+    group_variable_values[4] = -0.018342747257815466
+    group_variable_values[5] = 2.139517307692104
+    group_variable_values[6] = 0.6733780175112191
+    group.set_joint_value_target(group_variable_values)
     
     plan1 = group.plan()
     group.go(wait=True)
@@ -344,32 +344,29 @@ def stateMachine(currState):
         home = listener.transformPoint("panda_link0",currPoint)
         #home = group.get_current_pose()
         # Checking if the end effector is in the right initial position
-        if ((abs(HOMEX-home.point.x)<locerror and abs(HOMEY-home.point.y)<locerror and abs(HOMEZ-home.point.z)<locerror)):
-            try:
-                # Getting current position and rotation of current position of panda_suction_end
-                (trans,rot) = listener.lookupTransform('/panda_link0','/panda_suction_end', rospy.Time())
-                # Setting end effector parallel to the table
-                q = quaternion_from_euler(math.pi, 0, 0)
-                msg = rospy.wait_for_message("/pandaposition", PoseStamped)
-                rospy.loginfo("Received at goal message!")
-                addMarker(msg.pose, "camera_color_frame")
-                input("Review position of marker")
-                if(msg.pose.position.x == 0 and msg.pose.position.y == 0 and msg.pose.position.z == 0 ):
-                    return 6
-                endPosition, currbox, camdepth = endPos(msg,q) # transforming from camera frame to world frame
-                rospy.loginfo(endPosition)
-                #input("Inspect final position before continuing")
-                if endPosition == "None":
-                    
-                    return 2
-                else: 
-                    emptycount = 0
-                    return 3
-            except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
-                print("look up fail")    
-        else:
-            homePos()
-            return 2
+        
+        try:
+            # Getting current position and rotation of current position of panda_suction_end
+            (trans,rot) = listener.lookupTransform('/panda_link0','/panda_suction_end', rospy.Time())
+            # Setting end effector parallel to the table - Bin slightly slanted so that is not optimal
+            #q = quaternion_from_euler(math.pi+0.013, -0.06, 0)
+            msg = rospy.wait_for_message("/pandaposition", PoseStamped)
+            rospy.loginfo("Received at goal message!")
+            addMarker(msg.pose, "camera_color_frame")
+            input("Review position of marker")
+            if(msg.pose.position.x == 0 and msg.pose.position.y == 0 and msg.pose.position.z == 0 ):
+                return 2
+            endPosition, currbox, camdepth = endPos(msg,rot) # transforming from camera frame to world frame
+            rospy.loginfo(endPosition)
+            #input("Inspect final position before continuing")
+            if endPosition == "None":
+                
+                return 2
+            else: 
+                emptycount = 0
+                return 3
+        except (tf.LookupException, tf.ConnectivityException, tf.ExtrapolationException):
+            print("look up fail")    
 
     elif currState == 3:
         # The fourth state starts by taking an image of the bin before moving above the object, 

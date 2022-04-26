@@ -52,7 +52,7 @@
 <joint name="${ns}_suction_end_joint" type="fixed">
   <parent link="${ns}_suction_rect"/>
   <child link="${ns}_suction_end"/>
-  <origin xyz="0 0 0.21" rpy="0 0 0"/>
+  <origin xyz="0 0 0.222" rpy="0 0 0"/>
 </joint>
 
 <link name="shift_origin"/>
@@ -90,8 +90,11 @@ y er i att ad tokkum
   <parent link="shift_origin"/>
   <child link="c_link" />
   <!-- <origin rpy="0.02 -0.045 0 " xyz="0.02 0 0"/> -->
-  <origin rpy="0.05 -0.01 0 " xyz="0.02 0 0"/>
+  <origin rpy="0.026 -0.01 0 " xyz="0.02 0 0"/>
+  <!-- <origin rpy="0 0 0 " xyz="0.02 0 0"/> -->
 </joint>
+
+<!-- R: 0.28 acceptable -->
 
 <!--<joint name="kinect_joint" type="fixed">
     <parent link="${ns}_suction_cup" />
