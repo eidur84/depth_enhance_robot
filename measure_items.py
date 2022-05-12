@@ -32,12 +32,15 @@ import os, os.path
 import moveit_msgs.msg
 from random import random, randrange, randint
 from datetime import date, datetime
-# Mininum and maximum points of the box in world coordinates - Proceed with caution if box has been moved
+
+# Mininum and maximum points of the box in world coordinates - Given that box has not been moved
 
 YMIN = -0.1139
 YMAX = 0.1838
 XMIN = 0.3341
-XMAX = 0.44374
+XMAX = 0.49
+ZMIN = 0.025
+ZMAX = 0.2
 
 # Instantiate CvBridge
 bridge = CvBridge()
@@ -46,8 +49,10 @@ image_color = "/camera/color/image_raw"
 image_depth = "/camera/aligned_depth_to_color/image_raw"
 #folder_path = "/mnt/bigdata/eidur14/data"
 #folder_path = "/home/lab/Pictures/data/eidur14"
-folder_path = "/home/lab/Pictures/data"
+folder_path = "/home/lab/Documents/Eidur/Data/newdata"
 counter = 0
+
+## Helper functions ##
 
 # Adds a marker at the provided coordinates which can be visualized in rviz 
 def addMarker(pickp,refframe,color=True):
@@ -73,7 +78,104 @@ def addMarker(pickp,refframe,color=True):
 
     markpub.publish(marker)
 
+# Takes in desire pose position and returns a pose message
+def createpose(x,y,z,qx,qy,qz,qw):
+    pose_target = geometry_msgs.msg.Pose()
+    pose_target.orientation.x = qx
+    pose_target.orientation.y = qy
+    pose_target.orientation.z = qz
+    pose_target.orientation.w = qw
+    pose_target.position.x = x
+    pose_target.position.y = y
+    pose_target.position.z = z
+
+    return pose_target
+
+# Checks that the pose target coordinate lies within the box boundaries
+def iswithin(pose_target):
+    # Booleans for each dimension
+    xvalid = pose_target.position.x > XMIN and pose_target.position.x < XMAX
+    yvalid = pose_target.position.y > YMIN and pose_target.position.y < YMAX
+    zvalid = pose_target.position.z > ZMIN and pose_target.position.z < ZMAX
+
+    return xvalid and yvalid and zvalid
+
+# Perform a cartesian trajectory using moveitcommander function compute_cartesian_path.
+def cartesian_traject(waypoint,step,vel_scale=0.5,pause=False,sleeptime=0.6):
+    
+    group.clear_pose_targets()
+    #print(waypoint.position.z)
+    waypoints = []
+    waypoints.append(copy.deepcopy(waypoint))  
+    (plan, fraction) = group.compute_cartesian_path(
+                                                          waypoints,   # waypoints to follow
+                                                          step,        # eef_step
+                                                          0         # jump_threshold
+    )
+
+    plan = group.retime_trajectory(robot.get_current_state(),plan,vel_scale)
+    group.execute(plan)
+
+    if pause:
+        rospy.sleep(sleeptime)
+
+# Takes in a stamped pose and returns an unstamped one
+def pose_unstamped(pose_target_stamped):
+    pose_target = geometry_msgs.msg.Pose()
+    pose_target.orientation.x = pose_target_stamped.pose.orientation.x
+    pose_target.orientation.y = pose_target_stamped.pose.orientation.y
+    pose_target.orientation.z = pose_target_stamped.pose.orientation.z
+    pose_target.orientation.w = pose_target_stamped.pose.orientation.w
+    pose_target.position.x = pose_target_stamped.pose.position.x
+    pose_target.position.y = pose_target_stamped.pose.position.y
+    pose_target.position.z = pose_target_stamped.pose.position.z
+
+    return pose_target
+
+## Main functions ##
+
+def homePos():
+    # print("Moving to home position")
+    # Home position using joint values
+    # group.clear_pose_targets()
+    # group_variable_values = group.get_current_joint_values()
+    # group_variable_values[0] = float(radians(0))
+    # group_variable_values[1] = float(radians(-25))
+    # group_variable_values[2] = float(radians(1))
+    # group_variable_values[3] = float(radians(-133))
+    # group_variable_values[4] = float(radians(0))
+    # group_variable_values[5] = float(radians(109))
+    # group_variable_values[6] = float(radians(45)) # 45 is straight
+    # group.set_joint_value_target(group_variable_values)
+
+    # Joint positions in radians (L515)
+    # group_variable_values = group.get_current_joint_values()
+    # group_variable_values[0] = 0.039827141041538304
+    # group_variable_values[1] = -0.6856789446295354
+    # group_variable_values[2] = -0.051094866318138026
+    # group_variable_values[3] = -2.6372590758340397
+    # group_variable_values[4] = -0.022729468238022594
+    # group_variable_values[5] = 1.9992456805838477
+    # group_variable_values[6] = 0.7680859528355461 # 
+    # group.set_joint_value_target(group_variable_values)
+
+    # Around 43 cm from bin bottom and with the camera aligned in the middle
+    group_variable_values = group.get_current_joint_values()
+    group_variable_values[0] = 0.2405372671024597
+    group_variable_values[1] = -0.7981669106111364
+    group_variable_values[2] = -0.2941279667553149
+    group_variable_values[3] = -2.641695639301903
+    group_variable_values[4] = -0.21753881494171842
+    group_variable_values[5] = 1.90281725288762
+    group_variable_values[6] = 0.8802616816083866
+    group.set_joint_value_target(group_variable_values)
+    
+    plan1 = group.plan()
+    group.go(wait=True)
+    group.clear_pose_targets()
+
 # Moves down vertically towards a pick point, takes in a force goal as a stopping condition indicating the pick point has been reached
+# Depricated
 def movetotouch(initial_pose, force_goal,debug=True):
     
     totdistance = 0
@@ -111,7 +213,7 @@ def movetotouch(initial_pose, force_goal,debug=True):
     pressure = rospy.wait_for_message("/vacuum/pressure", Float32)
     print(f'Pressure: {pressure.data}')
     
-    if(pressure.data < -0.1):
+    if(pressure.data <= -0.1):
         pick=True
 
     currentp=group.get_current_pose()
@@ -119,8 +221,154 @@ def movetotouch(initial_pose, force_goal,debug=True):
 
     return pick, currentp
 
+# Depth measurements using force feedback from Panda
+def measuredepthF(camera_initial_height, object_pose, refdist):
 
+    # Pose goal at the object
+    pose_goal=object_pose
 
+    # Initialize position of panda suction end for the while loop
+    (trans,rot) = listener.lookupTransform('/panda_link0','/panda_suction_end', rospy.Time())
+
+    # Marker posted to view in Rviz
+    #addMarker(pose_goal, "panda_link0")
+
+    #input("Review goal - Press to continue")
+
+    # Move towards object/surface
+    cartesian_traject(pose_goal,0.05,0.5,True)
+
+    #input("Review position - Press to continue")
+
+    totdistance = 0
+    # Vectors to collect force/distance da        forceval = rospy.wait_for_message("/franka_state_controller/F_ext", geometry_msgs.msg.WrenchStamped)
+
+    #Setting initial values of force and distance vectors
+    rospy.sleep(1)
+    forcemsg = rospy.wait_for_message("/franka_state_controller/F_ext", geometry_msgs.msg.WrenchStamped)
+    forceval=0
+    initpos = pose_goal.position.z
+    initforce = forcemsg.wrench.force.z
+    increment = 0.001
+
+    # Check the pressure on the vaccuum
+    #pressure = rospy.wait_for_message("/vacuum/pressure", Float32)
+    # Vacuum on
+    #pubSuc.publish(Bool(True))
+
+    # Drives down while force trigger has not been reached
+    while(trans[2] > 0.02 and forceval < 0.5):
+        pose_goal.position.z -= increment
+        # waypoint,step,vel_scale=0.5,pause=False,sleeptime=0.6
+        cartesian_traject(pose_goal,0.0005,0.1,True,0.8)
+        
+        #input("press to increment down")
+
+        # Force value on the end effector acquired
+        forcemsg = rospy.wait_for_message("/franka_state_controller/F_ext", geometry_msgs.msg.WrenchStamped)
+        #pressure = rospy.wait_for_message("/vacuum/pressure", Float32)
+        forceval=forcemsg.wrench.force.z - initforce
+        totdistance += increment 
+        distance.append(totdistance)
+        (trans,rot) = listener.lookupTransform('/panda_link0','/panda_suction_end', rospy.Time(0))
+        print(f'Force: {forceval}- Distance: {totdistance}')
+
+    print("Finished measuring")
+
+    # Getting the position of the suction end in world coordinates
+    sucendPt=PointStamped()
+    sucendPt.header.frame_id = "panda_suction_end"
+    grndtruthpos = listener.transformPoint("panda_link0",sucendPt)
+    grndtruthheight=grndtruthpos.point.z
+
+    print(f'Height of object: {grndtruthheight}')
+
+    # Experiments showed 0.5 N where achieved at 4 mm compression of suction cup
+    grndtruthdepth=camera_initial_height-(grndtruthheight+refdist)
+
+    return grndtruthdepth
+
+# Uses pressure to find pickpoint
+# Returns estimated depth at surface, depth at vacuum pick and if the pick was successfull
+def measuredepthP(camera_initial_height, refdist):
+
+    # Getting current pose of the robot
+    currentp=group.get_current_pose()
+    currentp=pose_unstamped(currentp)
+
+    # Pose goal at the object
+    pose_goal=currentp
+
+    # Move towards object/surface
+    #cartesian_traject(pose_goal,0.05,0.5,True)
+
+    #input("Review position - Press to continue")
+
+    totdistance = 0
+    # Vectors to collect force/distance da        forceval = rospy.wait_for_message("/franka_state_controller/F_ext", geometry_msgs.msg.WrenchStamped)
+
+    #Setting initial values of force and distance vectors
+    rospy.sleep(1)
+    forcemsg = rospy.wait_for_message("/franka_state_controller/F_ext", geometry_msgs.msg.WrenchStamped)
+    forceval=0
+    initpos = pose_goal.position.z
+    initforce = forcemsg.wrench.force.z
+    increment = 0.001
+
+    # Boolean for pick success
+    pick=False
+
+    # Vacuum on and execution halted for 300 ms
+    pubSuc.publish(Bool(True))
+    rospy.sleep(0.1)
+
+    # Check the pressure on the vaccuum
+    pressure = rospy.wait_for_message("/vacuum/pressure", Float32)
+
+    # Drives down while force pressure has not been reached. Maximum approach distance 2,5 cm
+    while(totdistance < 0.035 and pressure.data > -0.1):
+        pose_goal.position.z -= increment
+        # waypoint,step,vel_scale=0.5,pause=False,sleeptime=0.6
+        cartesian_traject(pose_goal,0.0005,0.1)
+        #input("press to increment down")
+        rospy.sleep(0.05)
+        # Force value on the end effector acquired
+        pressure = rospy.wait_for_message("/vacuum/pressure", Float32)
+        totdistance += increment 
+        #(trans,rot) = listener.lookupTransform('/panda_link0','/panda_suction_end', rospy.Time(0))
+        print(f'Pressure: {pressure.data}- Distance: {totdistance}')
+        
+
+    print("Finished measuring")
+
+    # If the loop was broken by trigger pressure
+    if pressure.data < -0.1:
+        # If the loop was entered, else the pick point was exceeded
+        # and the measurement is discarded since the desired value is 
+        # the lowest depth value at which suction grasp is achieved.
+        if totdistance > 0:
+            pick=True
+        else:
+            pick=False
+    # If loop is broken by distance, the depth measurment is discarded (pick=False by default)
+    else:
+        pubSuc.publish(Bool(False))
+        
+    # Getting the position of the suction end in world coordinates
+    sucendPt=PointStamped()
+    sucendPt.header.frame_id = "panda_suction_end"
+    grndtruthpos = listener.transformPoint("panda_link0",sucendPt)
+    grndtruthheight=grndtruthpos.point.z
+
+    print(f'Height of object: {grndtruthheight}')
+
+    #Calculating depth at surface and depth at pick point
+    grndtruthdepth=camera_initial_height-(grndtruthheight+refdist)
+    grndtrthpick=camera_initial_height-grndtruthheight
+
+    return grndtruthdepth, grndtrthpick, pick
+
+# Moves toward the pick point, performs measurement and gathers images and labels
 def moveAbove(pose_target, camdepth):
     global currbox
     captureImage()
@@ -131,51 +379,51 @@ def moveAbove(pose_target, camdepth):
     initialheight=camInitial.point.z
 
     print(f'Initial height of camera: {initialheight}')
-    before = pose_target.position.z
-    print("Move above!")
-    # Move the suction cup slightly above the object (panda_suction_end 10 cm from target)
-    pose_target.position.z = before+0.02 #0.12
-    print(pose_target)
-    # group.set_pose_target(pose_target)
-    # plan1 = group.plan()
-    # group.go(wait=True)
-    # group.clear_pose_targets()
-    cartesian_traject(pose_target,0.05,0.5)
-    print("Hovering above")
+
+    # Move the suction cup slightly above the object
+    cartesian_traject(pose_target,0.05,0.8)
+    
+    # Moves vertically towards target pick point until a pick is achieved
+    measured_depth,measuredpp,pick= measuredepthP(initialheight,0.003)
+    #measured_depth=initialheight-currentp.position.z+0.004
+
+    print(f'Depth found: {measured_depth} - Vision depth: {camdepth} -Press any key to continue')
+
+    # Labels only gathered if pick is considered a success.
+    if(pick):
+        datawrite(currbox,measuredpp,camdepth)
+
+    return pick
+
+# Moving items within the bin, random coordinates chosen within bin with a slight random rotation
+# Safemode used to verify that the poses are valid, observing markers in Rviz
+def shuffleobjects(safemode=True): 
+
+    # Getting current pose and transforming it to non-stamped pose
     currentp=group.get_current_pose()
     currentp=pose_unstamped(currentp)
-    # Moves vertically towards target pick point with a stopping condition of 2 N vertical force on the end effector
-    pick, currentp = movetotouch(currentp,0.5)
-    measured_depth=initialheight-currentp.position.z+0.004
 
-    input(f'Depth found: {measured_depth} - Vision depth: {camdepth} -Press any key to continue')
-
-    if(pick):
-        datawrite(currbox,measured_depth)
-
-    return pick,currentp
-
-def shuffleobjects(current_pose,safemode=True): #move the item that is picked to a "locked" location...
-
-    # Go up 10 cm
-    current_pose.position.z += 0.1
+    # Go up 5 cm
+    currentp.position.z += 0.05
 
     if(safemode):
-        addMarker(current_pose, "panda_link0")
+        addMarker(currentp, "panda_link0")
 
         input("Review marker - Press to continue")
 
-    cartesian_traject(current_pose, 0.05,0.5,pause=True)
+    #cartesian_traject(currentp, 0.05,0.5,pause=True)
 
-    # Create a random position in y within box limits (And added safety limits to avoid collision)
-    pose_target = geometry_msgs.msg.Pose()
-    pose_target.orientation.x = 1
-    pose_target.orientation.y = 0
-    pose_target.orientation.z = 0
-    pose_target.orientation.w = 0
-    pose_target.position.x = current_pose.position.x
-    pose_target.position.y = np.random.uniform(YMIN+0.05, YMAX-0.05)
-    pose_target.position.z = current_pose.position.z
+    # Add a random orientation
+    q = quaternion_from_euler(math.pi, 0, np.random.uniform(0, math.pi/8))
+
+    #x = currentp.position.x
+    # Try to keep object around middle
+    x = np.random.uniform(XMIN+0.01, XMAX-0.06)
+    #x = 0.39
+    y = np.random.uniform(YMIN+0.06, YMAX-0.06)
+    z = currentp.position.z
+
+    pose_target=createpose(x,y,z,q[0],q[1],q[2],q[3])
 
     if(safemode):
         addMarker(pose_target, "panda_link0")
@@ -185,51 +433,28 @@ def shuffleobjects(current_pose,safemode=True): #move the item that is picked to
     # Shut of vacuum
     pubSuc.publish(Bool(False))
 
-def moveToOtherBox(currpos): #move the item that is picked to a "locked" location...
-    homePos()
-    currpos.position.x = 0.45
-    currpos.position.y = -0.42
-    currpos.position.z = 0.43
-    currpos.orientation.x = 0.99999
-    currpos.orientation.y = 0.006
-    currpos.orientation.z = 0.008
-    currpos.orientation.w = 0.007
-    group.set_pose_target(currpos)
-    plan1 = group.plan()
-    group.go(wait=True)
-    pubSuc.publish(Bool(False))
 
 # Takes in a geometry_msgs.msg.Pose() and uses compute_cartesian_path to get a certesian trajectory and subsequently executes it
-def cartesian_traject(waypoint,step,vel_scale,pause=False):
+# def cartesian_traject(waypoint,step,vel_scale,pause=False):
     
-    group.clear_pose_targets()
-    #print(waypoint.position.z)
-    waypoints = []
-    waypoints.append(copy.deepcopy(waypoint))  
-    (plan, fraction) = group.compute_cartesian_path(
-                                                          waypoints,   # waypoints to follow
-                                                          step,        # eef_step
-                                                          0         # jump_threshold
-    )
+#     group.clear_pose_targets()
+#     #print(waypoint.position.z)
+#     waypoints = []
+#     waypoints.append(copy.deepcopy(waypoint))  
+#     (plan, fraction) = group.compute_cartesian_path(
+#                                                           waypoints,   # waypoints to follow
+#                                                           step,        # eef_step
+#                                                           0         # jump_threshold
+#     )
 
-    plan = group.retime_trajectory(robot.get_current_state(),plan,vel_scale)
-    group.execute(plan)
+#     plan = group.retime_trajectory(robot.get_current_state(),plan,vel_scale)
+#     group.execute(plan)
 
-    if pause:
-        rospy.sleep(0.2)
+#     if pause:
+#         rospy.sleep(0.2)
 
-def pose_unstamped(pose_target_stamped):
-    pose_target = geometry_msgs.msg.Pose()
-    pose_target.orientation.x = pose_target_stamped.pose.orientation.x
-    pose_target.orientation.y = pose_target_stamped.pose.orientation.y
-    pose_target.orientation.z = pose_target_stamped.pose.orientation.z
-    pose_target.orientation.w = pose_target_stamped.pose.orientation.w
-    pose_target.position.x = pose_target_stamped.pose.position.x
-    pose_target.position.y = pose_target_stamped.pose.position.y
-    pose_target.position.z = pose_target_stamped.pose.position.z
 
-    return pose_target
-
+# Takes in coordinates from camera and transforms to base link frame
 def endPos(msg,rot): 
     # Copying for simplicity
     position = msg.pose.position
@@ -252,13 +477,10 @@ def endPos(msg,rot):
     pose_target.orientation.y = 0
     pose_target.orientation.z = 0
     pose_target.orientation.w = 0
-    # pose_target.orientation.x = 1
-    # pose_target.orientation.y = 0
-    # pose_target.orientation.z = 0
-    # pose_target.orientation.w = 0
     pose_target.position.x = p.point.x
     pose_target.position.y = p.point.y
-    pose_target.position.z = p.point.z
+    # Position 2 cm above target pick point
+    pose_target.position.z = p.point.z+0.02
     currentbox = [quat.x, quat.y, quat.z, quat.w]
     #addMarker(pose_target,"panda_link0", False)
     #print(currentbox)
@@ -272,84 +494,35 @@ def captureImage():
     depthmsg = rospy.wait_for_message(image_depth, Image)
     color_frame = bridge.imgmsg_to_cv2(colormsg, "bgr8")
     depth_frame = bridge.imgmsg_to_cv2(depthmsg, desired_encoding="passthrough")
+    # To visualize the depth images
     # depth_image = np.array(depth_frame, dtype=np.float32)
     # depth_image = cv2.applyColorMap(cv2.convertScaleAbs(depth_image), cv2.COLORMAP_RAINBOW)
     imgname = str(counter).zfill(4)
-    # f= open(os.path.join(dirName, imgname+".txt"),"w+")
-    # if currentbox != 0:
-    #     f.write("0 %.9f %.9f %.9f %.9f\r\n" % (float(currentbox.x),float(currentbox.y),float(currentbox.z),float(currentbox.w)))
-    # f.close() 
     cv2.imwrite(os.path.join(dirName, imgname+"color.png"), color_frame)
     cv2.imwrite(os.path.join(dirName, imgname+"depth.png"), depth_frame)
 
-def datawrite(currentbox,depth):
+# Writes out data of bounding box as well as calculated depth
+# And the height of the end effector at pick, as the raw depth
+def datawrite(currentbox,depth,camdepth):
     global counter
     imgname = str(counter).zfill(4)
-    f= open(os.path.join(dirName, imgname+".txt"),"w+")
-    if currentbox != 0:
-        f.write("0 %.9f %.9f %.9f %.9f %.9f\r\n" % (float(currentbox.x),float(currentbox.y),float(currentbox.z),float(currentbox.w),float(depth)))
+    # Label format: x left bottom, y left bottom, width, height, measured depth, camera depth
+    # The label format would ideally use x middle, y middle but a large dataset has been gathered
+    # Using this format, the format will be kept for consistency
+    f= open(os.path.join(dirName,imgname+".txt"),"w+")
+    f.write("0 %.9f %.9f %.9f %.9f %.6f %.6f\r\n" % (float(currentbox.x),float(currentbox.y),float(currentbox.z),float(currentbox.w),float(depth),float(camdepth)))
     f.close()
-    print("0 %.9f %.9f %.9f %.9f %.9f\r\n" % (float(currentbox.x),float(currentbox.y),float(currentbox.z),float(currentbox.w),float(depth)))
+    print("0 %.9f %.9f %.9f %.9f %.6f %.6f\r\n" % (float(currentbox.x),float(currentbox.y),float(currentbox.z),float(currentbox.w),float(depth),float(camdepth)))
     counter += 1
-
-def homePos():
-    # print("Moving to home position")
-    # group.clear_pose_targets()
-    # group_variable_values = group.get_current_joint_values()
-    # group_variable_values[0] = float(radians(0))
-    # group_variable_values[1] = float(radians(-25))
-    # group_variable_values[2] = float(radians(1))
-    # group_variable_values[3] = float(radians(-133))
-    # group_variable_values[4] = float(radians(0))
-    # group_variable_values[5] = float(radians(109))
-    # group_variable_values[6] = float(radians(45)) # 45 is straight
-    # group.set_joint_value_target(group_variable_values)
-
-    # Joint positions in radians (L515)
-    # group_variable_values = group.get_current_joint_values()
-    # group_variable_values[0] = 0.039827141041538304
-    # group_variable_values[1] = -0.6856789446295354
-    # group_variable_values[2] = -0.051094866318138026
-    # group_variable_values[3] = -2.6372590758340397
-    # group_variable_values[4] = -0.022729468238022594
-    # group_variable_values[5] = 1.9992456805838477
-    # group_variable_values[6] = 0.7680859528355461 # 
-    # group.set_joint_value_target(group_variable_values)
-
-    # Joint positions in radians (D435)
-    # group_variable_values = group.get_current_joint_values()
-    # group_variable_values[0] = 0.020526881909422708
-    # group_variable_values[1] = -0.5317800948996293
-    # group_variable_values[2] = -0.1270579353005081
-    # group_variable_values[3] = -2.6110645072334693
-    # group_variable_values[4] = -0.018342747257815466
-    # group_variable_values[5] = 2.139517307692104
-    # group_variable_values[6] = 0.6733780175112191
-    # group.set_joint_value_target(group_variable_values)
-
-    # Joint positions in radians (D435) - Level to bin plane
-    group_variable_values = group.get_current_joint_values()
-    group_variable_values[0] = 0.246356896832986
-    group_variable_values[1] = -0.6244039310907062
-    group_variable_values[2] = -0.23465549162080804
-    group_variable_values[3] = -2.7476190777801137
-    group_variable_values[4] = -0.1498159416185485
-    group_variable_values[5] = 2.134987596286692
-    group_variable_values[6] = 0.9298414194710828
-    group.set_joint_value_target(group_variable_values)
-    
-    plan1 = group.plan()
-    group.go(wait=True)
-    group.clear_pose_targets()
  
-
+# Runs in an infinite loop gathering depth measurements, to break simply press ctrl+c.
 def stateMachine(currState):
     global endPosition, start, currbox, dirName, camdepth
-    if currState == 0: #The first state starts by creating a new directory to save the images.
+    #The first state starts by creating a new directory to save the images.
+    if currState == 0: 
         folder = ""
         print("Create new dir")
         folder = input("Folder name\n") # user creates a folder
-        #folder="eidur"
         dirName = folder_path + "/" + folder
         try:
             # Create target Directory
@@ -366,7 +539,7 @@ def stateMachine(currState):
             value = int(value)
         return value
     elif currState == 2: 
-        # The third state waits for a message from the find\_pickpoint.py through a ROS topic where it gets an object position from the camera, 
+        # The third state waits for a message from the find_pickpoint.py through a ROS topic where it gets an object position from the camera, 
         # and then the TF listener transforms the object position in camera coordinates to world coordinates.
         print("State 2")
         # Pause to ensure detected pickpoints when going to initial position won't be used
@@ -374,25 +547,24 @@ def stateMachine(currState):
         currPoint=PointStamped()
         currPoint.header.frame_id = "panda_suction_end"
         home = listener.transformPoint("panda_link0",currPoint)
-        #home = group.get_current_pose()
-        # Checking if the end effector is in the right initial position
         
         try:
             # Getting current position and rotation of current position of panda_suction_end
             (trans,rot) = listener.lookupTransform('/panda_link0','/panda_suction_end', rospy.Time())
-            # Setting end effector parallel to the table - Bin slightly slanted so that is not optimal
+            # Setting end effector parallel to the bin
             #q = quaternion_from_euler(math.pi, 0, 0)
+            # Wait for pose goal from th vision side
             msg = rospy.wait_for_message("/pandaposition", PoseStamped)
             rospy.loginfo("Received at goal message!")
             addMarker(msg.pose, "camera_color_frame")
-            input("Review position of marker")
-            if(msg.pose.position.x == 0 and msg.pose.position.y == 0 and msg.pose.position.z == 0 ):
-                return 2
+            #input("Review position of marker")
+            #if(msg.pose.position.x == 0 and msg.pose.position.y == 0 and msg.pose.position.z == 0 ):
+            #    return 2
             endPosition, currbox, camdepth = endPos(msg,rot) # transforming from camera frame to world frame
-            rospy.loginfo(endPosition)
+            #rospy.loginfo(endPosition)
             #input("Inspect final position before continuing")
-            if endPosition == "None":
-                
+            if (not iswithin(endPosition)):
+                print(f'({endPosition.position.x},{endPosition.position.y},{endPosition.position.z}) not within bounds!')
                 return 2
             else: 
                 #emptycount = 0
@@ -401,12 +573,14 @@ def stateMachine(currState):
             print("look up fail")    
 
     elif currState == 3:
-        # The fourth state starts by taking an image of the bin before moving above the object, 
-        # it then turns on the suction and slowly goes down to the object.  
-        #The fourth state finishes when the suction pressure increases and that means the suction cup has picked up the object 
-        # and then moves to a fixed home position.
-        #start = time.time()
-        pick,currp=moveAbove(endPosition,camdepth)
+        # At the fourth state, the actual measurement is performed. The brings the suction cup
+        # sligthly above the pick point detected by the camera to account for possible depth
+        # underestimation from camera. The end effector is then slowly driven towards the object 
+        # Until a certain approach length is excceded, which indicates a non-succsessful pick, or
+        # when certain pressure drop is achieved within the vacuum system which indicates a succsessful
+        # pick. If a pick is achieved the object is relocated to a random position within the bin with 
+        # and reorientated. If not, the robot goes into the home position and begins again.
+        pick=moveAbove(endPosition,camdepth)
         if pick == False:
             pubSuc.publish(bool(False))
             homePos()
@@ -416,30 +590,15 @@ def stateMachine(currState):
             return 4
         
     elif currState == 4:
-        # The fifth state moves the object above another bin, drops it, and ends by going to a fixed home position. 
-        # When the fifth state has finished and there are items in the bin it goes back to the third state, 
-        # but if the bin is empty it goes to the sixth state.
-        shuffleobjects(endPosition)
+        # The fifth state performs the relocation of the object and then moves to the robot
+        # to the home position. Execution is then halted for two seconds two ensure that the
+        # object is stationary before accepting pose goals from the vision side. Which might
+        # need less or more time depending on the object.
+        shuffleobjects(False)
         homePos()
         rospy.sleep(2)
-        #end = time.time()
-        #rospy.loginfo("TIME:")
-        #rospy.loginfo(end - start)
         return 2
-    # elif currState == 6:
-    #     # The sixth state takes an image of an empty bin and waits until the user wants to start
-    #     # again with new items in the bin and then goes to the first state again. 
-    #     exitstate = -1
-    #     homePos()
-    #     pubSuc.publish(Bool(False))
-    #     #captureImage(0)
-    #     while exitstate != 0: 
-    #         exitstate = input("Enter 0 to begin again and create new directory:\n")
-    #         exitstate = int(exitstate)
-    #     print(exitstate)
-    #     return 0
-        
-        
+               
 if __name__ == '__main__':
     emptycount = 0
     #rostopic pub  std_msgs/Bool true --once
@@ -463,7 +622,6 @@ if __name__ == '__main__':
     # print(f'Orientation tolerance: {orient}')
     display_trajectory_publisher = rospy.Publisher('move_group/display_planned_path', moveit_msgs.msg.DisplayTrajectory, queue_size=10) # Talks to the moveit motion planner
     homePos()
-    #empty = input("Enter 0 to start the statemachine\n")
     empty = 0
     now = datetime.now()
     # dd/mm/YY H:M:S
