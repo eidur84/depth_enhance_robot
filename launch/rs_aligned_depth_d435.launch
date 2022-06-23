@@ -44,6 +44,8 @@
 
   <arg name="infra_rgb"           default="true"/>
   <arg name="enable_infra"        default="true"/>
+  
+
 
 
   <group ns="$(arg camera)">

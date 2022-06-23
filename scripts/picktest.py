@@ -135,7 +135,7 @@ def shuffleobjects(safemode=True): #move the item that is picked to a "locked" l
     cartesian_traject(currentp, 0.05,0.5,pause=True)
 
     # Add a random orientation
-    q = quaternion_from_euler(math.pi, 0, np.random.uniform(-math.pi/8, math.pi/8))
+    q = quaternion_from_euler(math.pi, 0, np.random.uniform(0, math.pi/8))
 
     #x = currentp.position.x
     # Try to keep object around middle
@@ -218,27 +218,6 @@ def homePos():
     #group_variable_values[5] = float(radians(109))
     #group_variable_values[6] = float(radians(45)) # 45 is straight
     #group.set_joint_value_target(group_variable_values)
-
-    # group_variable_values = group.get_current_joint_values()
-    # group_variable_values[0] = 0
-    # group_variable_values[1] = -0.6999209085682471
-    # group_variable_values[2] = 0.015764035018303778
-    # group_variable_values[3] = -2.479506837022749
-    # group_variable_values[4] = -0.03019742977288034
-    # group_variable_values[5] = 1.8284102745983333
-    # group_variable_values[6] = 0.7890444130053123
-    # group.set_joint_value_target(group_variable_values)
-
-    # Joint positions in radians (D435)
-    # group_variable_values = group.get_current_joint_values()
-    # group_variable_values[0] = 0.07320734092148395
-    # group_variable_values[1] = -0.6008668125573948
-    # group_variable_values[2] = -0.16961717653901953
-    # group_variable_values[3] = -2.6558488347211138
-    # group_variable_values[4] = -0.07008392171724813
-    # group_variable_values[5] = 2.1059772145880604
-    # group_variable_values[6] = 0.7096239592979352
-    # group.set_joint_value_target(group_variable_values)
 
     # Joint positions in radians (D435) - Level to bin plane - Final
     # Around 43 cm from bin bottom and with the camera aligned in the middle
@@ -419,7 +398,7 @@ def binplanecalibration(height_at_bottom):
     print("Finished calibration")
 
 # Test funtion to see how much compression of the suction bell is needed to reach
-# a target force. Suction cup is driven into a surface 1 mm at a time, first manually
+# a target pressure. Suction cup is driven into a surface 1 mm at a time, first manually
 # to find the point of contact and then automatically until maxforce is reached
 def pressuretest(targetpressure,numiterations=10):
 
@@ -835,6 +814,7 @@ def measuredepthF(camera_initial_height, object_pose, refdist):
     # Initialize position of panda suction end for the while loop
     (trans,rot) = listener.lookupTransform('/panda_link0','/panda_suction_end', rospy.Time())
 
+    # Good to use when testing the function
     # Marker posted to view in Rviz
     #addMarker(pose_goal, "panda_link0")
 
@@ -905,7 +885,9 @@ def measuredepthF(camera_initial_height, object_pose, refdist):
 # The function takes in:
 # - Initial height of the camera in world coordinates
 # - Pose of the object of interest in world coordinates
-# - Reference compression distance in meters of suction cup to travel to achieve 0.5 N force (0.004 recommended)
+# - Reference compression distance in meters of suction cup compression before suction
+#   grasp to be achieved, at -0.1 gauge pressure. This value depends largely on
+#   the curvature of objects being picked
 def measuredepthP(camera_initial_height, object_pose, refdist):
 
     # Pose goal at the object
@@ -955,7 +937,7 @@ def measuredepthP(camera_initial_height, object_pose, refdist):
     while(totdistance < 0.025 and pressure.data > -0.1):
         pose_goal.position.z -= increment
         # waypoint,step,vel_scale=0.5,pause=False,sleeptime=0.6
-        cartesian_traject(pose_goal,0.0005,0.1,True,0.8)
+        cartesian_traject(pose_goal,0.0005,0.1,False)
         #input("press to increment down")
         rospy.sleep(0.05)
         # Force value on the end effector acquired
@@ -998,6 +980,7 @@ def testmeasuredepth(iter,ground_truth_width,groundtruth_binheight, product,forc
     suffix = datetime.now().strftime("%y%m%d_%H%M%S")
     path=folder_path+"/Depthmeasuretest"
     imgpath = os.path.join(path,"Depthmeasure"+forceorpressure+product+suffix+".png")
+    imgpathcam = os.path.join(path,"Depthmeasurecam"+forceorpressure+product+suffix+".png")
     csvpath= os.path.join(path,"Depthmeasure"+forceorpressure+".csv")
     # Getting the position of the camera in world coordinates
     camPt=PointStamped()
@@ -1051,7 +1034,7 @@ def testmeasuredepth(iter,ground_truth_width,groundtruth_binheight, product,forc
         if forcemeasure:
             objectdepth=measuredepthF(initialheight,pose_target,0.003)
         else:
-            objectdepth,pickval=measuredepthP(initialheight,pose_target,0.002)
+            objectdepth,pickval=measuredepthP(initialheight,pose_target,0.001)
 
         print(f'Depth of object: {objectdepth}')
         print(f'Measurement error: {objectdepth-grndtrthdepth}')
@@ -1083,46 +1066,59 @@ def testmeasuredepth(iter,ground_truth_width,groundtruth_binheight, product,forc
 
     # Calculating all errors
     errordeptharr=measureddeptharr-grndtrthdepth
+    errorcamdeptharr=camdeptharr-grndtrthdepth
     avgmeasurederror_depth=np.mean(errordeptharr)
     stdmeasurederror_depth=np.std(errordeptharr)
 
-    # Filtering out error values above 4 (Since they can be filtered out using suction)
-    # errordeptharr_fixed=errordeptharr[np.where(errordeptharr >= -4)]
-    # avgmeasurederror_fixed=np.mean(errordeptharr_fixed)
-    # stdmeasurederror_fixed=np.std(errordeptharr_fixed)
-    # avgaccuracy_fixed = (1-abs(avgmeasurederror_fixed/grndtrthdepth))*100
-
-    print(errordeptharr)
-    print(errordeptharr_fixed)
-
-    print(picklengtharr)
+    # Length of approach to pickpoint used for force measurements
+    #print(picklengtharr)
 
     avgmeasured_depth=np.mean(measureddeptharr)
     stdmeasured_depth=np.std(measureddeptharr)
     avgmeasured_cam=np.mean(camdeptharr)
     stdmeasured_cam=np.std(camdeptharr)
 
-    avgerror_robot=avgmeasured_depth-grndtrthdepth
-    avgerror_cam=avgmeasured_cam-grndtrthdepth
+    avgerror_robot = np.mean(abs(errordeptharr))
+    avgerror_cam = np.mean(abs(errorcamdeptharr))
 
-    avgaccuracy_robot = (1-abs(avgerror_robot/grndtrthdepth))*100
-    avgaccuracy_cam = (1-abs(avgerror_cam/grndtrthdepth))*100
+    print(abs(errordeptharr))
+
+    avgaccuracy_robot = (1-avgerror_robot/grndtrthdepth)*100
+    avgaccuracy_cam = (1-avgerror_cam/grndtrthdepth)*100
 
     plotdata=np.unique(errordeptharr, return_counts=True)
 
+    minxval=-10
+    maxxval=5
+    minyval=0
+    maxyval=10
+
     plt.figure()
-    plt.hist(errordeptharr,edgecolor='black',linewidth=1,zorder=3)
-    plt.title(f'Depth measure {forceorpressure} test: {product}')
+    plt.hist(errordeptharr,np.arange(minxval,maxxval+1,0.5),color='blue',edgecolor='black',linewidth=1,zorder=3)
+    plt.title(f'Depth measure {forceorpressure} test: {product} - Robot')
     plt.grid(axis='y',color='black',linestyle='--',linewidth=0.2, zorder=0)
     _ = plt.xlabel('Measurement error (mm)')
     _ = plt.ylabel('Number of occurences')
+    plt.xticks(np.arange(minxval, maxxval+1))  # Set label locations.
+    plt.yticks(np.arange(minyval, maxyval+1))  # Set label locations.
     plt.savefig(imgpath)
     plt.show()
 
+    plt.figure()
+    plt.hist(errorcamdeptharr,np.arange(minxval,maxxval+1,0.5),color='blue',edgecolor='black',linewidth=1,zorder=3)
+    plt.title(f'Depth measure {forceorpressure} test: {product} - Camera')
+    plt.grid(axis='y',color='black',linestyle='--',linewidth=0.2, zorder=0)
+    _ = plt.xlabel('Measurement error (mm)')
+    _ = plt.ylabel('Number of occurences')
+    plt.xticks(np.arange(minxval, maxxval+1))  # Set label locations.
+    plt.yticks(np.arange(minyval, maxyval+1))  # Set label locations.
+    plt.savefig(imgpathcam)
+    plt.show()
+
     # Data for csv prepared
-    list_row_append = [(f'{product}',avgmeasurederror_depth,avgaccuracy_robot,stdmeasured_depth,avgaccuracy_cam,stdmeasured_cam)]
+    list_row_append = [(f'{product}',avgmeasurederror_depth,avgerror_robot,avgaccuracy_robot,stdmeasured_depth,avgaccuracy_cam,stdmeasured_cam)]
  
-    dtype = [('Name', (np.str)), ('Average error', np.float), ('Average accuracy', np.float),('Repeatability', np.float),('Camera accuracy', np.float),('Camera repeatability', np.float)]
+    dtype = [('Name', (np.str_,15)), ('Average error', np.float),('Average abs error', np.float), ('Average accuracy', np.float),('Repeatability', np.float),('Camera accuracy', np.float),('Camera repeatability', np.float)]
   
     data = np.array(list_row_append, dtype=dtype)
 
@@ -1130,11 +1126,12 @@ def testmeasuredepth(iter,ground_truth_width,groundtruth_binheight, product,forc
 
     # Write the results to a csv
     with open(csvpath,'a+') as csvfile:
-        np.savetxt(csvfile,data,delimiter=',',fmt=['%s' , '%.2f', '%.2f','%.2f','%.2f','%.2f'], comments='')
+        np.savetxt(csvfile,data,delimiter=',',fmt=['%s' , '%.2f', '%.2f', '%.2f','%.2f','%.2f','%.2f'], comments='')
 
     print(f'Avg error robot: {avgmeasurederror_depth} - std error: {stdmeasurederror_depth} mm')
+    print(f'Avg abs error robot: {avgerror_robot} mm')
     #print(f'Avg error robot fixed: {avgmeasurederror_fixed} - std error fixed: {stdmeasurederror_fixed} mm')
-    print(f'Avg percent accuracy robot fixed: {avgaccuracy_fixed} % - repeatability: {stdmeasurederror_fixed} mm')
+    #print(f'Avg percent accuracy robot fixed: {avgaccuracy_fixed} % - repeatability: {stdmeasurederror_fixed} mm')
     print(f'Avg percent accuracy robot: {avgaccuracy_robot} % - repeatability: {stdmeasured_depth} mm')
     print(f'Avg percent accuracy camera: {avgaccuracy_cam} % - repeatability: {stdmeasured_cam} mm')
 
@@ -1143,8 +1140,9 @@ def runstuff():
     # target force - Max force - Iterations
     #compressiontest(0.5,3,3)
     # Iterations, width of object, height of bin in base frame (In meters)
-    #testmeasuredepth(20,0.047,0.0176,"Alberto Balsam", False)
-    plot_bar([2,2,3,3,3,3,4,5,5,5],"Pressure test: Nivea Texture")
+    testmeasuredepth(20,0.0604,0.0176,"D:Fi", True)
+    # Function to fix compression/pressure test hist plots
+    #plot_bar([2,2,3,3,3,3,4,5,5,5],"Pressure test: Nivea Texture")
     #pressuretest(-0.1,10)
     #binplanecalibration(0.015)
 
